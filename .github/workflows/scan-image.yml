@@ -36,11 +36,7 @@ jobs:
           push: false
           load: true
           tags: testing-image:${{ github.sha }}
-          outputs: type=docker,dest=/tmp/image.tar
-
-      - name: Load image
-        run: |
-          docker load --input /tmp/image.tar
+          file: ./Dockerfile
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
@@ -51,7 +47,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Upload Trivy results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
@@ -64,7 +60,7 @@ jobs:
           fail-build: false
 
       - name: Upload Grype results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: ${{ steps.grype.outputs.sarif }}

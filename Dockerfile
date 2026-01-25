@@ -1,20 +1,23 @@
 # Stage 1: Builder stage
 FROM dhi.io/node:25-debian13-sfw-ent-dev AS builder
 
-ARG NPM_TOKEN
+ARG SOCKET_API_KEY
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with npm token authentication
-RUN if [ -n "$NPM_TOKEN" ]; then \
-      npm set //registry.npmjs.org/:_authToken=$NPM_TOKEN && \
-      npm install --production; \
-    else \
-      npm install --production --legacy-peer-deps || npm install --production; \
-    fi
+# Optionally set the SOCKET_API_KEY if provided
+# Disable Socket scanning by default
+ENV SOCKET_DISABLE=1
+
+# Install dependencies
+RUN if [ -n "$SOCKET_API_KEY" ]; then \
+      export SOCKET_API_KEY=$SOCKET_API_KEY; \
+    fi && \
+    npm install --production
+
 
 # Stage 2: Runtime stage (minimal)
 FROM dhi.io/node:25-debian13-sfw-ent-dev

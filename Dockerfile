@@ -8,15 +8,15 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Optionally set the SOCKET_API_KEY if provided
-# Disable Socket scanning by default
-ENV SOCKET_DISABLE=1
-
-# Install dependencies
+# Optional: log first 6 chars of the key to verify it is passed correctly
 RUN if [ -n "$SOCKET_API_KEY" ]; then \
-      export SOCKET_API_KEY=$SOCKET_API_KEY; \
-    fi && \
-    npm install --production
+      echo "SOCKET_API_KEY provided: ${SOCKET_API_KEY:0:6}******"; \
+    else \
+      echo "No SOCKET_API_KEY provided"; \
+    fi
+
+# Install dependencies (this will trigger Socket scanning if key is valid)
+RUN npm install --production
 
 
 # Stage 2: Runtime stage (minimal)

@@ -1,0 +1,16 @@
+{
+  "name": "testing-image",
+  "version": "1.0.0",
+  "description": "Testing endpoint for hardened docker image",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["testing", "docker"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

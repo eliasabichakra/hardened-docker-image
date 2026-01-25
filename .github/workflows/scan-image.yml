@@ -32,9 +32,8 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t testing-image:${{ github.sha }} \
-            --build-arg SOCKET_API_KEY=${{ secrets.SOCKET_API_KEY }} \
-            -f ./Dockerfile .
+          docker build -t testing-image:${{ github.sha }} -f ./Dockerfile .
+
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master

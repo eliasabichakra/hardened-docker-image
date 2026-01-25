@@ -1,7 +1,6 @@
 # Stage 1: Builder stage
 FROM dhi.io/node:25-debian13-sfw-ent-dev AS builder
 
-ARG SOCKET_API_KEY
 ENV SOCKET_DISABLE=1
 
 
@@ -10,12 +9,6 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Optional: log first 6 chars of the key to verify it is passed correctly
-RUN if [ -n "$SOCKET_API_KEY" ]; then \
-      echo "SOCKET_API_KEY provided: ${SOCKET_API_KEY:0:6}******"; \
-    else \
-      echo "No SOCKET_API_KEY provided"; \
-    fi
 
 # Install dependencies (this will trigger Socket scanning if key is valid)
 RUN npm install --production

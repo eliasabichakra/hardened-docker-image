@@ -15,16 +15,10 @@ FROM dhi.io/node:25-debian13-sfw-ent-dev
 
 WORKDIR /app
 
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser
-
 # Copy only necessary files from builder stage
-COPY --from=builder --chown=appuser:appuser /app/node_modules ./node_modules
-COPY --chown=appuser:appuser package*.json ./
-COPY --chown=appuser:appuser server.js .
-
-# Switch to non-root user
-USER appuser
+COPY --from=builder /app/node_modules ./node_modules
+COPY package*.json ./
+COPY server.js .
 
 # Expose port
 EXPOSE 3000

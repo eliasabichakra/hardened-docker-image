@@ -32,7 +32,9 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t testing-image:${{ github.sha }} -f ./Dockerfile .
+          docker build -t testing-image:${{ github.sha }} \
+            --build-arg NPM_TOKEN=${{ secrets.NPM_TOKEN }} \
+            -f ./Dockerfile .
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master

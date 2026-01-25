@@ -1,14 +1,20 @@
 # Stage 1: Builder stage
 FROM dhi.io/node:25-debian13-sfw-ent-dev AS builder
 
+ARG NPM_TOKEN
+
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (skip Socket.dev check for testing)
-RUN npm install --production --legacy-peer-deps 2>/dev/null || \
-    npm install --production --no-audit --no-fund || true
+# Install dependencies with npm token authentication
+RUN if [ -n "$NPM_TOKEN" ]; then \
+      npm set //registry.npmjs.org/:_authToken=$NPM_TOKEN && \
+      npm install --production; \
+    else \
+      npm install --production --legacy-peer-deps || npm install --production; \
+    fi
 
 # Stage 2: Runtime stage (minimal)
 FROM dhi.io/node:25-debian13-sfw-ent-dev

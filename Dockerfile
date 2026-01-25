@@ -2,6 +2,8 @@
 FROM dhi.io/node:25-debian13-sfw-ent-dev AS builder
 
 ARG SOCKET_API_KEY
+ENV SOCKET_DISABLE=1
+
 
 WORKDIR /app
 

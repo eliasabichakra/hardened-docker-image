@@ -1,5 +1,5 @@
 # Stage 1: Builder stage
-FROM dhi.io/node:25-debian13-sfw-ent-dev as builder
+FROM dhi.io/node:25-debian13-sfw-ent-dev AS builder
 
 WORKDIR /app
 

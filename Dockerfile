@@ -1,20 +1,16 @@
 # Stage 1: Builder stage
-FROM dhi.io/node:25-debian13-sfw-ent-dev AS builder
-
-ENV SOCKET_DISABLE=1
+FROM dhi.io/node:25-debian13-dev AS builder
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-
-# Install dependencies (this will trigger Socket scanning if key is valid)
+# Install production dependencies
 RUN npm install --production
 
-
 # Stage 2: Runtime stage (minimal)
-FROM dhi.io/node:25-debian13-sfw-ent-dev
+FROM dhi.io/node:25-debian13
 
 WORKDIR /app
 
@@ -28,7 +24,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => { if (r.statusCode !== 200) process.exit(1) })"
 
 # Start the application
 CMD ["npm", "start"]

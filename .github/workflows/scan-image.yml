@@ -53,8 +53,10 @@ jobs:
         uses: anchore/scan-action@v3
         id: grype
         with:
-          path: testing-image:${{ github.sha }}
+          image: testing-image:${{ github.sha }}
+          output-format: sarif
           fail-build: false
+
 
       - name: Upload Grype results
         uses: github/codeql-action/upload-sarif@v3

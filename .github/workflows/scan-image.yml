@@ -49,6 +49,7 @@ jobs:
         if: always() && hashFiles('trivy-results.sarif') != ''
         with:
           sarif_file: 'trivy-results.sarif'
+          category: "Trivy-Scan-${{ env.BASE_IMAGE }}-${{ github.run_number }}"
 
       - name: Run Grype scanner (all severities)
         uses: anchore/scan-action@v3
@@ -63,6 +64,7 @@ jobs:
         if: always() && hashFiles(steps.grype.outputs.sarif) != ''
         with:
           sarif_file: ${{ steps.grype.outputs.sarif }}
+          category: "Trivy-Scan-${{ env.BASE_IMAGE }}-${{ github.run_number }}"
 
       - name: Run Docker Scout CVE scan
         run: |

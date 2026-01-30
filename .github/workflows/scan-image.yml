@@ -32,7 +32,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t testing-image:${{ github.sha }} -f ./Dockerfile .
+          docker build --no-cache -t testing-image:${{ github.sha }} -f ./Dockerfile .
 
 
       - name: Run Trivy vulnerability scanner

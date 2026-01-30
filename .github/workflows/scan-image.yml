@@ -57,7 +57,7 @@ jobs:
         with:
           image: testing-image:${{ github.sha }}
           output-format: sarif
-          fail-build: false  # do not fail
+          fail-build: false  # do not fail the build on vulnerabilities
 
       - name: Upload Grype results
         uses: github/codeql-action/upload-sarif@v4

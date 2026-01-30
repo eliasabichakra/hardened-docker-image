@@ -36,31 +36,30 @@ jobs:
         run: |
           docker build --no-cache -t testing-image:${{ github.sha }} -f ./Dockerfile .
 
-      - name: Run Trivy
+      - name: Run Trivy (all severities)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: testing-image:${{ github.sha }}
           format: 'sarif'
           output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-          ignore-unfixed: true
+          ignore-unfixed: true  # keep scanning even if no fixes
 
       - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always() && hashFiles('trivy-results.sarif') != ''
         with:
           sarif_file: 'trivy-results.sarif'
 
-      - name: Run Grype scanner
+      - name: Run Grype scanner (all severities)
         uses: anchore/scan-action@v3
         id: grype
         with:
           image: testing-image:${{ github.sha }}
           output-format: sarif
-          fail-build: false
+          fail-build: false  # do not fail
 
       - name: Upload Grype results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always() && hashFiles(steps.grype.outputs.sarif) != ''
         with:
           sarif_file: ${{ steps.grype.outputs.sarif }}

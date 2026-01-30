@@ -1,4 +1,4 @@
-FROM dhi.io/node:25-debian13-dev
+FROM node:25-alpine
 
 # Do nothing just test
 CMD ["node", "--version"]

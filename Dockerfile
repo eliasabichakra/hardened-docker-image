@@ -13,7 +13,7 @@ RUN npm install --production
 COPY server.js . 
 
 # Stage 2: Runtime (DHI Alpine hardened)
-FROM dhi.io/node:25-alpine3.22
+FROM dhi.io/node:25-debian13-sfw-ent-dev
 
 WORKDIR /app
 

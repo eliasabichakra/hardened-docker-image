@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM dhi.io/node:25 AS builder
+FROM dhi.io/node:25-alpine3.22 AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY package*.json ./
 RUN npm install --production
 
 # Stage 2: Runtime (minimal Alpine)
-FROM dhi.io/node:25
+FROM dhi.io/node:25-alpine3.22
 
 WORKDIR /app
 

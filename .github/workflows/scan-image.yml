@@ -44,11 +44,15 @@ jobs:
           output: 'trivy-results.sarif'
           ignore-unfixed: true  # keep scanning even if no fixes
 
+      - name: Make Trivy SARIF unique
+        run: |
+          mv trivy-results.sarif trivy-results-${{ env.BASE_IMAGE }}-${{ github.run_number }}.sarif
+
       - name: Upload Trivy results
         uses: github/codeql-action/upload-sarif@v4
-        if: always() && hashFiles('trivy-results.sarif') != ''
+        if: always() && hashFiles('trivy-results-*.sarif') != ''
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: trivy-results-${{ env.BASE_IMAGE }}-${{ github.run_number }}.sarif
           category: "Trivy-Scan-${{ env.BASE_IMAGE }}-${{ github.run_number }}"
 
       - name: Run Grype scanner (all severities)
@@ -59,12 +63,16 @@ jobs:
           output-format: sarif
           fail-build: false  # do not fail the build on vulnerabilities
 
+      - name: Make Grype SARIF unique
+        run: |
+          mv ${{ steps.grype.outputs.sarif }} grype-results-${{ env.BASE_IMAGE }}-${{ github.run_number }}.sarif
+
       - name: Upload Grype results
         uses: github/codeql-action/upload-sarif@v4
-        if: always() && hashFiles(steps.grype.outputs.sarif) != ''
+        if: always() && hashFiles('grype-results-*.sarif') != ''
         with:
-          sarif_file: ${{ steps.grype.outputs.sarif }}
-          category: "Trivy-Scan-${{ env.BASE_IMAGE }}-${{ github.run_number }}"
+          sarif_file: grype-results-${{ env.BASE_IMAGE }}-${{ github.run_number }}.sarif
+          category: "Grype-Scan-${{ env.BASE_IMAGE }}-${{ github.run_number }}"
 
       - name: Run Docker Scout CVE scan
         run: |

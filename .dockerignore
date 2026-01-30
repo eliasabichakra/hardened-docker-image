@@ -22,3 +22,5 @@ Dockerfile
 *.swp
 *.swo
 *~
+note.sh
+Dockerfile.hdi

@@ -1,5 +1,5 @@
-# Stage 1: Builder stage
-FROM dhi.io/node:25-debian13-dev AS builder
+# Stage 1: Builder
+FROM node:25-alpine AS builder
 
 WORKDIR /app
 
@@ -9,12 +9,12 @@ COPY package*.json ./
 # Install production dependencies
 RUN npm install --production
 
-# Stage 2: Runtime stage (minimal)
-FROM dhi.io/node:25-debian13
+# Stage 2: Runtime (minimal Alpine)
+FROM node:25-alpine
 
 WORKDIR /app
 
-# Copy only necessary files from builder stage
+# Copy only what’s needed
 COPY --from=builder /app/node_modules ./node_modules
 COPY package*.json ./
 COPY server.js .
@@ -26,5 +26,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (r) => { if (r.statusCode !== 200) process.exit(1) })"
 
-# Start the application
-CMD ["npm", "start"]
+# Start app (avoid npm in runtime if you want extra hardening)
+CMD ["node", "server.js"]

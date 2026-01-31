@@ -14,9 +14,9 @@ jobs:
     steps:
       - name: Install Trivy
         run: |
-           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-                 | sudo sh -s -- -b /usr/local/bin
-           trivy version
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sudo sh -s -- -b /usr/local/bin
+          trivy version
 
       - name: Install Grype
         run: |
@@ -42,22 +42,25 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🔍 Image: \`$IMAGE\`" >> $GITHUB_STEP_SUMMARY
 
+            # Trivy scan
             echo "**Trivy (All Severities)**" >> $GITHUB_STEP_SUMMARY
             trivy image "$IMAGE" \
               --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
               --no-progress \
+              --scanners vuln \
               --format table | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY
 
             echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Grype scan
             echo "**Grype (All Severities)**" >> $GITHUB_STEP_SUMMARY
             grype "$IMAGE" -o table | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY
 
             echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Docker Scout scan
             echo "**Docker Scout Summary**" >> $GITHUB_STEP_SUMMARY
-            # Run Docker Scout in a container to capture output
-            docker run --rm -e DOCKER_CLI_EXPERIMENTAL=enabled \
-              -v /var/run/docker.sock:/var/run/docker.sock \
-              docker/scout-action:latest cves "$IMAGE" | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY
+            docker scout cves "$IMAGE" | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY
 
             echo "" >> $GITHUB_STEP_SUMMARY
           done

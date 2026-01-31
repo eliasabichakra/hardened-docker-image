@@ -37,6 +37,14 @@ jobs:
             "dhi.io/node:25-debian13-sfw-ent-dev"
           )
 
+          # Initialize cumulative totals
+          TOTAL_TRIVY_HIGH=0
+          TOTAL_TRIVY_CRITICAL=0
+          TOTAL_TRIVY_MEDIUM=0
+          TOTAL_GRYPE_HIGH=0
+          TOTAL_GRYPE_CRITICAL=0
+          TOTAL_GRYPE_MEDIUM=0
+
           echo "## 🛡️ Base Image Vulnerability Summary" >> $GITHUB_STEP_SUMMARY
 
           for IMAGE in "${IMAGES[@]}"; do
@@ -50,6 +58,11 @@ jobs:
             TRIVY_MEDIUM=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length')
             TRIVY_TOTAL=$((TRIVY_HIGH + TRIVY_CRITICAL + TRIVY_MEDIUM))
 
+            # Update cumulative totals
+            TOTAL_TRIVY_HIGH=$((TOTAL_TRIVY_HIGH + TRIVY_HIGH))
+            TOTAL_TRIVY_CRITICAL=$((TOTAL_TRIVY_CRITICAL + TRIVY_CRITICAL))
+            TOTAL_TRIVY_MEDIUM=$((TOTAL_TRIVY_MEDIUM + TRIVY_MEDIUM))
+
             # --- Grype summary ---
             GRYPE_JSON=$(grype "$IMAGE" -o json)
             GRYPE_HIGH=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="High")] | length')
@@ -57,9 +70,15 @@ jobs:
             GRYPE_MEDIUM=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="Medium")] | length')
             GRYPE_TOTAL=$((GRYPE_HIGH + GRYPE_CRITICAL + GRYPE_MEDIUM))
 
-            # --- Print totals per image ---
-            echo "total: " >> $GITHUB_STEP_SUMMARY
+            # Update cumulative totals
+            TOTAL_GRYPE_HIGH=$((TOTAL_GRYPE_HIGH + GRYPE_HIGH))
+            TOTAL_GRYPE_CRITICAL=$((TOTAL_GRYPE_CRITICAL + GRYPE_CRITICAL))
+            TOTAL_GRYPE_MEDIUM=$((TOTAL_GRYPE_MEDIUM + GRYPE_MEDIUM))
 
+            # --- Print per-image total ---
+            echo "total: Trivy=$TRIVY_TOTAL, Grype=$GRYPE_TOTAL" >> $GITHUB_STEP_SUMMARY
+
+            # --- Print detailed breakdown ---
             echo "**Trivy Summary (HIGH / CRITICAL / MEDIUM)**" >> $GITHUB_STEP_SUMMARY
             echo "Trivy: HIGH=$TRIVY_HIGH, CRITICAL=$TRIVY_CRITICAL, MEDIUM=$TRIVY_MEDIUM" >> $GITHUB_STEP_SUMMARY
 
@@ -68,3 +87,9 @@ jobs:
             echo "**Grype Summary (HIGH / CRITICAL / MEDIUM)**" >> $GITHUB_STEP_SUMMARY
             echo "Grype: HIGH=$GRYPE_HIGH, CRITICAL=$GRYPE_CRITICAL, MEDIUM=$GRYPE_MEDIUM" >> $GITHUB_STEP_SUMMARY
           done
+
+          # --- Print grand totals across all images ---
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🏁 Grand Total Across All Images" >> $GITHUB_STEP_SUMMARY
+          echo "Trivy: HIGH=$TOTAL_TRIVY_HIGH, CRITICAL=$TOTAL_TRIVY_CRITICAL, MEDIUM=$TOTAL_TRIVY_MEDIUM" >> $GITHUB_STEP_SUMMARY
+          echo "Grype: HIGH=$TOTAL_GRYPE_HIGH, CRITICAL=$TOTAL_GRYPE_CRITICAL, MEDIUM=$TOTAL_GRYPE_MEDIUM" >> $GITHUB_STEP_SUMMARY

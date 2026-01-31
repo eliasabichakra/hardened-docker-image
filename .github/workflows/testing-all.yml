@@ -43,51 +43,47 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🔍 Image: \`$IMAGE\`" >> $GITHUB_STEP_SUMMARY
 
-            # --- Trivy JSON ---
-            TRIVY_JSON=$(trivy image "$IMAGE" --severity HIGH,CRITICAL --scanners vuln --format json)
-            TRIVY_HIGH=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="HIGH")]')
-            TRIVY_CRITICAL=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="CRITICAL")]')
+            # --- Trivy summary ---
+            TRIVY_JSON=$(trivy image "$IMAGE" --severity HIGH,CRITICAL,MEDIUM --scanners vuln --format json)
+            TRIVY_HIGH=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="HIGH")] | length')
+            TRIVY_CRITICAL=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length')
+            TRIVY_MEDIUM=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length')
 
-            # --- Grype JSON ---
+            # --- Grype summary ---
             GRYPE_JSON=$(grype "$IMAGE" -o json)
-            GRYPE_HIGH=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="High")]')
-            GRYPE_CRITICAL=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="Critical")]')
+            GRYPE_HIGH=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="High")] | length')
+            GRYPE_CRITICAL=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="Critical")] | length')
+            GRYPE_MEDIUM=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="Medium")] | length')
 
-            # --- Trivy table ---
-            echo "**Trivy HIGH Vulnerabilities**" >> $GITHUB_STEP_SUMMARY
-            if [ $(echo "$TRIVY_HIGH" | jq 'length') -eq 0 ]; then
+            # --- Print numeric summaries ---
+            echo "**Trivy Summary (HIGH / CRITICAL / MEDIUM)**" >> $GITHUB_STEP_SUMMARY
+            echo "Trivy: HIGH=$TRIVY_HIGH, CRITICAL=$TRIVY_CRITICAL, MEDIUM=$TRIVY_MEDIUM" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Grype Summary (HIGH / CRITICAL / MEDIUM)**" >> $GITHUB_STEP_SUMMARY
+            echo "Grype: HIGH=$GRYPE_HIGH, CRITICAL=$GRYPE_CRITICAL, MEDIUM=$GRYPE_MEDIUM" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # --- Print Trivy HIGH+CRITICAL table ---
+            echo "#### Trivy HIGH & CRITICAL Vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            TRIVY_VULNS=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="HIGH" or .Severity=="CRITICAL")]')
+            if [ $(echo "$TRIVY_VULNS" | jq 'length') -eq 0 ]; then
               echo "_None_" >> $GITHUB_STEP_SUMMARY
             else
-              echo "| Vulnerability | Package | Version | Fix Version |" >> $GITHUB_STEP_SUMMARY
-              echo "|--------------|--------|--------|------------|" >> $GITHUB_STEP_SUMMARY
-              echo "$TRIVY_HIGH" | jq -r '.[] | "| \(.VulnerabilityID) | \(.PkgName) | \(.InstalledVersion) | \(.FixedVersion // "-") |"' >> $GITHUB_STEP_SUMMARY
+              echo "| Vulnerability | Severity | Package | Installed Version | Fix Version |" >> $GITHUB_STEP_SUMMARY
+              echo "|---------------|---------|--------|-----------------|------------|" >> $GITHUB_STEP_SUMMARY
+              echo "$TRIVY_VULNS" | jq -r '.[] | "| \(.VulnerabilityID) | \(.Severity) | \(.PkgName) | \(.InstalledVersion) | \(.FixedVersion // "-") |"' >> $GITHUB_STEP_SUMMARY
             fi
+            echo "" >> $GITHUB_STEP_SUMMARY
 
-            echo "**Trivy CRITICAL Vulnerabilities**" >> $GITHUB_STEP_SUMMARY
-            if [ $(echo "$TRIVY_CRITICAL" | jq 'length') -eq 0 ]; then
+            # --- Print Grype HIGH+CRITICAL table ---
+            echo "#### Grype HIGH & CRITICAL Vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            GRYPE_VULNS=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="High" or .vulnerability.severity=="Critical")]')
+            if [ $(echo "$GRYPE_VULNS" | jq 'length') -eq 0 ]; then
               echo "_None_" >> $GITHUB_STEP_SUMMARY
             else
-              echo "| Vulnerability | Package | Version | Fix Version |" >> $GITHUB_STEP_SUMMARY
-              echo "|--------------|--------|--------|------------|" >> $GITHUB_STEP_SUMMARY
-              echo "$TRIVY_CRITICAL" | jq -r '.[] | "| \(.VulnerabilityID) | \(.PkgName) | \(.InstalledVersion) | \(.FixedVersion // "-") |"' >> $GITHUB_STEP_SUMMARY
+              echo "| Vulnerability | Severity | Package | Version | Fix Version |" >> $GITHUB_STEP_SUMMARY
+              echo "|---------------|---------|--------|--------|------------|" >> $GITHUB_STEP_SUMMARY
+              echo "$GRYPE_VULNS" | jq -r '.[] | "| \(.vulnerability.id) | \(.vulnerability.severity) | \(.artifact.name) | \(.artifact.version) | \(.vulnerability.fixedInVersion // "-") |"' >> $GITHUB_STEP_SUMMARY
             fi
-
-            # --- Grype table ---
-            echo "**Grype HIGH Vulnerabilities**" >> $GITHUB_STEP_SUMMARY
-            if [ $(echo "$GRYPE_HIGH" | jq 'length') -eq 0 ]; then
-              echo "_None_" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "| Vulnerability | Package | Version | Fix Version |" >> $GITHUB_STEP_SUMMARY
-              echo "|--------------|--------|--------|------------|" >> $GITHUB_STEP_SUMMARY
-              echo "$GRYPE_HIGH" | jq -r '.[] | "| \(.vulnerability.id) | \(.artifact.name) | \(.artifact.version) | \(.vulnerability.fixedInVersion // "-") |"' >> $GITHUB_STEP_SUMMARY
-            fi
-
-            echo "**Grype CRITICAL Vulnerabilities**" >> $GITHUB_STEP_SUMMARY
-            if [ $(echo "$GRYPE_CRITICAL" | jq 'length') -eq 0 ]; then
-              echo "_None_" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "| Vulnerability | Package | Version | Fix Version |" >> $GITHUB_STEP_SUMMARY
-              echo "|--------------|--------|--------|------------|" >> $GITHUB_STEP_SUMMARY
-              echo "$GRYPE_CRITICAL" | jq -r '.[] | "| \(.vulnerability.id) | \(.artifact.name) | \(.artifact.version) | \(.vulnerability.fixedInVersion // "-") |"' >> $GITHUB_STEP_SUMMARY
-            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
           done

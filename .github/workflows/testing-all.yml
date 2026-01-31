@@ -22,15 +22,11 @@ jobs:
         run: |
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sudo sh -s -- -b /usr/local/bin
 
-      - name: Install Docker Scout
-        run: |
-          docker scout version || docker scout install
-
       - name: Login to DHI Registry
         run: |
           echo "${{ secrets.DHI_PASSWORD }}" | docker login -u "${{ secrets.DHI_USERNAME }}" --password-stdin dhi.io
 
-      - name: Scan images
+      - name: Scan base images
         run: |
           IMAGES=(
             "node:25-alpine"
@@ -46,17 +42,22 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🔍 Image: \`$IMAGE\`" >> $GITHUB_STEP_SUMMARY
 
-            echo "**Trivy (HIGH / CRITICAL)**" >> $GITHUB_STEP_SUMMARY
+            echo "**Trivy (All Severities)**" >> $GITHUB_STEP_SUMMARY
             trivy image "$IMAGE" \
-              --severity HIGH,CRITICAL \
+              --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
               --no-progress \
               --format table | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY
 
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Grype (HIGH / CRITICAL)**" >> $GITHUB_STEP_SUMMARY
+            echo "**Grype (All Severities)**" >> $GITHUB_STEP_SUMMARY
             grype "$IMAGE" -o table | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY
 
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Docker Scout Summary**" >> $GITHUB_STEP_SUMMARY
-            docker scout cves "$IMAGE" | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY
+            # Run Docker Scout in a container to capture output
+            docker run --rm -e DOCKER_CLI_EXPERIMENTAL=enabled \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              docker/scout-action:latest cves "$IMAGE" | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY
+
+            echo "" >> $GITHUB_STEP_SUMMARY
           done

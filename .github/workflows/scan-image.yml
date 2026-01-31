@@ -2,9 +2,9 @@ name: Build and Scan Docker Image
 
 on:
   push:
-    branches: [ x ]
+    branches: [ xx ]
   pull_request:
-    branches: [ x ]
+    branches: [ xx ]
   workflow_dispatch:
 
 permissions:

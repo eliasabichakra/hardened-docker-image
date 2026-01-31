@@ -44,22 +44,27 @@ jobs:
             echo "### 🔍 Image: \`$IMAGE\`" >> $GITHUB_STEP_SUMMARY
 
             # --- Trivy summary ---
-            echo "**Trivy Summary (HIGH / CRITICAL / MEDIUM)**" >> $GITHUB_STEP_SUMMARY
             TRIVY_JSON=$(trivy image "$IMAGE" --severity HIGH,CRITICAL,MEDIUM --scanners vuln --format json)
             TRIVY_HIGH=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="HIGH")] | length')
             TRIVY_CRITICAL=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length')
             TRIVY_MEDIUM=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length')
-            echo "Trivy: HIGH=$TRIVY_HIGH, CRITICAL=$TRIVY_CRITICAL, MEDIUM=$TRIVY_MEDIUM" >> $GITHUB_STEP_SUMMARY
-
-            echo "" >> $GITHUB_STEP_SUMMARY
+            TRIVY_TOTAL=$((TRIVY_HIGH + TRIVY_CRITICAL + TRIVY_MEDIUM))
 
             # --- Grype summary ---
-            echo "**Grype Summary (HIGH / CRITICAL / MEDIUM)**" >> $GITHUB_STEP_SUMMARY
             GRYPE_JSON=$(grype "$IMAGE" -o json)
             GRYPE_HIGH=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="High")] | length')
             GRYPE_CRITICAL=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="Critical")] | length')
             GRYPE_MEDIUM=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="Medium")] | length')
-            echo "Grype: HIGH=$GRYPE_HIGH, CRITICAL=$GRYPE_CRITICAL, MEDIUM=$GRYPE_MEDIUM" >> $GITHUB_STEP_SUMMARY
+            GRYPE_TOTAL=$((GRYPE_HIGH + GRYPE_CRITICAL + GRYPE_MEDIUM))
+
+            # --- Print totals per image ---
+            echo "total: " >> $GITHUB_STEP_SUMMARY
+
+            echo "**Trivy Summary (HIGH / CRITICAL / MEDIUM)**" >> $GITHUB_STEP_SUMMARY
+            echo "Trivy: HIGH=$TRIVY_HIGH, CRITICAL=$TRIVY_CRITICAL, MEDIUM=$TRIVY_MEDIUM" >> $GITHUB_STEP_SUMMARY
 
             echo "" >> $GITHUB_STEP_SUMMARY
+
+            echo "**Grype Summary (HIGH / CRITICAL / MEDIUM)**" >> $GITHUB_STEP_SUMMARY
+            echo "Grype: HIGH=$GRYPE_HIGH, CRITICAL=$GRYPE_CRITICAL, MEDIUM=$GRYPE_MEDIUM" >> $GITHUB_STEP_SUMMARY
           done

@@ -12,11 +12,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install Docker Scout CLI
-        run: |
-           curl -sSfL https://raw.githubusercontent.com/docker/scout-cli/main/install.sh \
-              | sudo sh -s -- -b /usr/local/bin
-
       - name: Install Trivy
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
@@ -26,6 +21,7 @@ jobs:
       - name: Install Grype
         run: |
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sudo sh -s -- -b /usr/local/bin
+          grype version
 
       - name: Login to DHI Registry
         run: |
@@ -41,31 +37,29 @@ jobs:
             "dhi.io/node:25-debian13-sfw-ent-dev"
           )
 
-          echo "## 🛡️ Base Image Vulnerability Comparison" >> $GITHUB_STEP_SUMMARY
+          echo "## 🛡️ Base Image Vulnerability Summary" >> $GITHUB_STEP_SUMMARY
 
           for IMAGE in "${IMAGES[@]}"; do
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🔍 Image: \`$IMAGE\`" >> $GITHUB_STEP_SUMMARY
 
-            # Trivy scan
-            echo "**Trivy (All Severities)**" >> $GITHUB_STEP_SUMMARY
-            trivy image "$IMAGE" \
-              --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
-              --no-progress \
-              --scanners vuln \
-              --format table | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY
+            # --- Trivy summary ---
+            echo "**Trivy Summary (HIGH / CRITICAL / MEDIUM)**" >> $GITHUB_STEP_SUMMARY
+            TRIVY_JSON=$(trivy image "$IMAGE" --severity HIGH,CRITICAL,MEDIUM --scanners vuln --format json)
+            TRIVY_HIGH=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="HIGH")] | length')
+            TRIVY_CRITICAL=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length')
+            TRIVY_MEDIUM=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length')
+            echo "Trivy: HIGH=$TRIVY_HIGH, CRITICAL=$TRIVY_CRITICAL, MEDIUM=$TRIVY_MEDIUM" >> $GITHUB_STEP_SUMMARY
 
             echo "" >> $GITHUB_STEP_SUMMARY
 
-            # Grype scan
-            echo "**Grype (All Severities)**" >> $GITHUB_STEP_SUMMARY
-            grype "$IMAGE" -o table | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY
-
-            echo "" >> $GITHUB_STEP_SUMMARY
-
-            # Docker Scout scan
-            echo "**Docker Scout Summary**" >> $GITHUB_STEP_SUMMARY
-            docker scout cves "$IMAGE" | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY
+            # --- Grype summary ---
+            echo "**Grype Summary (HIGH / CRITICAL / MEDIUM)**" >> $GITHUB_STEP_SUMMARY
+            GRYPE_JSON=$(grype "$IMAGE" -o json)
+            GRYPE_HIGH=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="High")] | length')
+            GRYPE_CRITICAL=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="Critical")] | length')
+            GRYPE_MEDIUM=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="Medium")] | length')
+            echo "Grype: HIGH=$GRYPE_HIGH, CRITICAL=$GRYPE_CRITICAL, MEDIUM=$GRYPE_MEDIUM" >> $GITHUB_STEP_SUMMARY
 
             echo "" >> $GITHUB_STEP_SUMMARY
           done

@@ -1,0 +1,63 @@
+name: Base Image Security Comparison
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  scan-base-images:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget
+          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.50.2_Linux-64bit.deb
+          sudo dpkg -i trivy_0.50.2_Linux-64bit.deb
+
+      - name: Install Grype
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sudo sh -s -- -b /usr/local/bin
+
+      - name: Install Docker Scout
+        run: |
+          docker scout version || docker scout install
+
+      - name: Login to DHI Registry
+        run: |
+          echo "${{ secrets.DHI_PASSWORD }}" | docker login -u "${{ secrets.DHI_USERNAME }}" --password-stdin dhi.io
+
+      - name: Scan images
+        run: |
+          IMAGES=(
+            "node:25-alpine"
+            "node:25-slim"
+            "dhi.io/node:25-debian13-dev"
+            "dhi.io/node:25-alpine3.22"
+            "dhi.io/node:25-debian13-sfw-ent-dev"
+          )
+
+          echo "## 🛡️ Base Image Vulnerability Comparison" >> $GITHUB_STEP_SUMMARY
+
+          for IMAGE in "${IMAGES[@]}"; do
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔍 Image: \`$IMAGE\`" >> $GITHUB_STEP_SUMMARY
+
+            echo "**Trivy (HIGH / CRITICAL)**" >> $GITHUB_STEP_SUMMARY
+            trivy image "$IMAGE" \
+              --severity HIGH,CRITICAL \
+              --no-progress \
+              --format table | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Grype (HIGH / CRITICAL)**" >> $GITHUB_STEP_SUMMARY
+            grype "$IMAGE" -o table | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Docker Scout Summary**" >> $GITHUB_STEP_SUMMARY
+            docker scout cves "$IMAGE" | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY
+          done

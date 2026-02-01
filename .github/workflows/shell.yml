@@ -24,8 +24,8 @@ jobs:
 
       - name: Run Container
         run: |
-          # Run the container in detached mode
-          docker run -d --name dhi_test_container dhi.io/node:25-alpine3.22 sleep 300
+          # Keep container alive using Node itself
+          docker run -d --name dhi_test_container dhi.io/node:25-alpine3.22 node -e "setTimeout(()=>{}, 300000)"
 
       - name: Attempt to Open Shell
         run: |

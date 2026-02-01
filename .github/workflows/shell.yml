@@ -29,9 +29,10 @@ jobs:
 
       - name: Attempt to Open Shell
         run: |
-          echo "Trying to open shell inside the hardened container..."
-          docker exec -it dhi_test_container sh || echo "Shell not available, as expected for hardened image."
-
+          echo "Trying to detect available shells inside the hardened container..."
+          docker exec dhi_test_container sh -c "echo 'sh exists'" || echo "sh not available"
+          docker exec dhi_test_container bash -c "echo 'bash exists'" || echo "bash not available"
+          docker exec dhi_test_container ash -c "echo 'ash exists'" || echo "ash not available"
       - name: Cleanup
         run: |
           docker rm -f dhi_test_container

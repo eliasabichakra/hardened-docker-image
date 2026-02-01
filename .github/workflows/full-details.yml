@@ -2,9 +2,9 @@ name: Base Image Security Comparison
 
 on:
   push:
-    branches: [ main ]
+    branches: [ xx ]
   pull_request:
-    branches: [ main ]
+    branches: [ xx ]
   workflow_dispatch:
 
 jobs:
@@ -17,13 +17,16 @@ jobs:
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
             | sudo sh -s -- -b /usr/local/bin
           trivy version
+
       - name: Install Grype
         run: |
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sudo sh -s -- -b /usr/local/bin
           grype version
+
       - name: Login to DHI Registry
         run: |
           echo "${{ secrets.DHI_PASSWORD }}" | docker login -u "${{ secrets.DHI_USERNAME }}" --password-stdin dhi.io
+
       - name: Scan base images
         run: |
           IMAGES=(
@@ -34,48 +37,54 @@ jobs:
             "dhi.io/node:25-alpine3.22"
             "dhi.io/node:25-debian13-sfw-ent-dev"
           )
-          # Initialize cumulative totals
-          TOTAL_TRIVY_HIGH=0
-          TOTAL_TRIVY_CRITICAL=0
-          TOTAL_TRIVY_MEDIUM=0
-          TOTAL_GRYPE_HIGH=0
-          TOTAL_GRYPE_CRITICAL=0
-          TOTAL_GRYPE_MEDIUM=0
+
           echo "## 🛡️ Base Image Vulnerability Summary" >> $GITHUB_STEP_SUMMARY
+
           for IMAGE in "${IMAGES[@]}"; do
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🔍 Image: \`$IMAGE\`" >> $GITHUB_STEP_SUMMARY
+
             # --- Trivy summary ---
             TRIVY_JSON=$(trivy image "$IMAGE" --severity HIGH,CRITICAL,MEDIUM --scanners vuln --format json)
             TRIVY_HIGH=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="HIGH")] | length')
             TRIVY_CRITICAL=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length')
             TRIVY_MEDIUM=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length')
-            TRIVY_TOTAL=$((TRIVY_HIGH + TRIVY_CRITICAL + TRIVY_MEDIUM))
-            # Update cumulative totals
-            TOTAL_TRIVY_HIGH=$((TOTAL_TRIVY_HIGH + TRIVY_HIGH))
-            TOTAL_TRIVY_CRITICAL=$((TOTAL_TRIVY_CRITICAL + TRIVY_CRITICAL))
-            TOTAL_TRIVY_MEDIUM=$((TOTAL_TRIVY_MEDIUM + TRIVY_MEDIUM))
+
             # --- Grype summary ---
             GRYPE_JSON=$(grype "$IMAGE" -o json)
             GRYPE_HIGH=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="High")] | length')
             GRYPE_CRITICAL=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="Critical")] | length')
             GRYPE_MEDIUM=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="Medium")] | length')
-            GRYPE_TOTAL=$((GRYPE_HIGH + GRYPE_CRITICAL + GRYPE_MEDIUM))
-            # Update cumulative totals
-            TOTAL_GRYPE_HIGH=$((TOTAL_GRYPE_HIGH + GRYPE_HIGH))
-            TOTAL_GRYPE_CRITICAL=$((TOTAL_GRYPE_CRITICAL + GRYPE_CRITICAL))
-            TOTAL_GRYPE_MEDIUM=$((TOTAL_GRYPE_MEDIUM + GRYPE_MEDIUM))
-            # --- Print per-image total ---
-            echo "total: Trivy=$TRIVY_TOTAL, Grype=$GRYPE_TOTAL" >> $GITHUB_STEP_SUMMARY
-            # --- Print detailed breakdown ---
+
+            # --- Print numeric summaries ---
             echo "**Trivy Summary (HIGH / CRITICAL / MEDIUM)**" >> $GITHUB_STEP_SUMMARY
             echo "Trivy: HIGH=$TRIVY_HIGH, CRITICAL=$TRIVY_CRITICAL, MEDIUM=$TRIVY_MEDIUM" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Grype Summary (HIGH / CRITICAL / MEDIUM)**" >> $GITHUB_STEP_SUMMARY
             echo "Grype: HIGH=$GRYPE_HIGH, CRITICAL=$GRYPE_CRITICAL, MEDIUM=$GRYPE_MEDIUM" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # --- Print Trivy HIGH+CRITICAL table ---
+            echo "#### Trivy HIGH & CRITICAL Vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            TRIVY_VULNS=$(echo "$TRIVY_JSON" | jq '[.Results[].Vulnerabilities[]? | select(.Severity=="HIGH" or .Severity=="CRITICAL")]')
+            if [ $(echo "$TRIVY_VULNS" | jq 'length') -eq 0 ]; then
+              echo "_None_" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| Vulnerability | Severity | Package | Installed Version | Fix Version |" >> $GITHUB_STEP_SUMMARY
+              echo "|---------------|---------|--------|-----------------|------------|" >> $GITHUB_STEP_SUMMARY
+              echo "$TRIVY_VULNS" | jq -r '.[] | "| \(.VulnerabilityID) | \(.Severity) | \(.PkgName) | \(.InstalledVersion) | \(.FixedVersion // "-") |"' >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # --- Print Grype HIGH+CRITICAL table ---
+            echo "#### Grype HIGH & CRITICAL Vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            GRYPE_VULNS=$(echo "$GRYPE_JSON" | jq '[.matches[] | select(.vulnerability.severity=="High" or .vulnerability.severity=="Critical")]')
+            if [ $(echo "$GRYPE_VULNS" | jq 'length') -eq 0 ]; then
+              echo "_None_" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| Vulnerability | Severity | Package | Version | Fix Version |" >> $GITHUB_STEP_SUMMARY
+              echo "|---------------|---------|--------|--------|------------|" >> $GITHUB_STEP_SUMMARY
+              echo "$GRYPE_VULNS" | jq -r '.[] | "| \(.vulnerability.id) | \(.vulnerability.severity) | \(.artifact.name) | \(.artifact.version) | \(.vulnerability.fixedInVersion // "-") |"' >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
           done
-          # --- Print grand totals across all images ---
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 🏁 Grand Total Across All Images" >> $GITHUB_STEP_SUMMARY
-          echo "Trivy: HIGH=$TOTAL_TRIVY_HIGH, CRITICAL=$TOTAL_TRIVY_CRITICAL, MEDIUM=$TOTAL_TRIVY_MEDIUM" >> $GITHUB_STEP_SUMMARY
-          echo "Grype: HIGH=$TOTAL_GRYPE_HIGH, CRITICAL=$TOTAL_GRYPE_CRITICAL, MEDIUM=$TOTAL_GRYPE_MEDIUM" >> $GITHUB_STEP_SUMMARY

@@ -30,6 +30,7 @@ jobs:
       - name: Scan base images
         run: |
           IMAGES=(
+            "node:25"
             "node:25-alpine"
             "node:25-slim"
             "dhi.io/node:25-debian13-dev"

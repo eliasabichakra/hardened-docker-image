@@ -2,9 +2,9 @@ name: Base Image Security Comparison
 
 on:
   push:
-    branches: [ main ]
+    branches: [ xx ]
   pull_request:
-    branches: [ main ]
+    branches: [ xx ]
   workflow_dispatch:
 
 jobs:

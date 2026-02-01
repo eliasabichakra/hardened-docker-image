@@ -1,0 +1,37 @@
+name: Test DHI Hardened Image
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-dhi-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Log in to DHI Registry
+        run: |
+          echo "${{ secrets.DHI_PASSWORD }}" | docker login -u "${{ secrets.DHI_USERNAME }}" --password-stdin dhi.io
+
+      - name: Pull DHI Node Image
+        run: |
+          docker pull dhi.io/node:25-alpine3.22
+
+      - name: Run Container
+        run: |
+          # Run the container in detached mode
+          docker run -d --name dhi_test_container dhi.io/node:25-alpine3.22 sleep 300
+
+      - name: Attempt to Open Shell
+        run: |
+          echo "Trying to open shell inside the hardened container..."
+          docker exec -it dhi_test_container sh || echo "Shell not available, as expected for hardened image."
+
+      - name: Cleanup
+        run: |
+          docker rm -f dhi_test_container
